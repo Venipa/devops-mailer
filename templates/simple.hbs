@@ -1,0 +1,16 @@
+# Notes for release {{releaseDetails.releaseDefinition.name}}
+**Release Number**: {{releaseDetails.name}}
+**Release completed**: {{releaseDetails.modifiedOn}}
+**Build Number**: {{buildDetails.id}}
+**Compared Release Number**: {{compareReleaseDetails.name}}
+**Build Trigger PR Number**: {{lookup buildDetails.triggerInfo 'pr.number'}}
+
+# Associated Pull Requests ({{pullRequests.length}})
+{{#forEach pullRequests}}
+* **[{{this.pullRequestId}}]({{replace (replace this.url "_apis/git/repositories" "_git") "pullRequests" "pullRequest"}})** {{this.title}}
+{{/forEach}}
+
+# Thank you contributors
+{{#each (unique (pluck commits "author.displayName"))}}
+* {{this}}
+{{/each}}

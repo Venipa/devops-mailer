@@ -254,6 +254,13 @@ const renderTemplate = (
   }
 };
 
+const normalizeEscapedNewlines = (value: string): string =>
+  value
+    .replace(/`r`n/g, "\n")
+    .replace(/`n/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
+
 const loadMessageConfiguration = (): MessageConfiguration => {
   const title: string = getRequiredInput("title");
   const fromAddress: string = getRequiredInput("fromAddress");
@@ -331,7 +338,8 @@ const run = async (): Promise<void> => {
       templateRuntimeContext,
       "content"
     );
-    const renderedHtmlContent: string = await Promise.resolve(marked.parse(renderedContent, {gfm: true}));
+    const normalizedContent: string = normalizeEscapedNewlines(renderedContent);
+    const renderedHtmlContent: string = await Promise.resolve(marked.parse(normalizedContent, {gfm: true}));
 
     const transporter = nodemailer.createTransport({
       host: smtpConfiguration.host,
@@ -366,13 +374,13 @@ const run = async (): Promise<void> => {
           }
         : {}),
       ...(messageConfiguration.contentFormat === "html"
-        ? { html: renderedContent }
+        ? { html: normalizedContent }
         : {}),
       ...(messageConfiguration.contentFormat === "markdown"
         ? { html: renderedHtmlContent }
         : {}),
       ...(messageConfiguration.contentFormat === "text"
-        ? { text: renderedContent }
+        ? { text: normalizedContent }
         : {}),
     };
 
