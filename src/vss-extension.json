@@ -17,6 +17,11 @@
       "id": "Microsoft.VisualStudio.Services"
     }
   ],
+  "content": {
+    "details": {
+      "path": "overview.md"
+    }
+  },
   "files": [
     {
       "path": "tasks/devops-mailer"
@@ -27,6 +32,10 @@
     },
     {
       "path": "icon.png",
+      "addressable": true
+    },
+    {
+      "path": "overview.md",
       "addressable": true
     }
   ],

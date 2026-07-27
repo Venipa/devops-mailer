@@ -14,6 +14,7 @@ const prepareReleaseFiles = async (): Promise<void> => {
   await cp("src/icon.png", `${RELEASE_TASK_DIRECTORY}/icon.png`);
   await cp("package.json", `${RELEASE_TASK_DIRECTORY}/package.json`);
   await cp("README.md", `${RELEASE_ROOT}/README.md`);
+  await cp("overview.md", `${RELEASE_ROOT}/overview.md`);
 };
 
 void prepareReleaseFiles();
