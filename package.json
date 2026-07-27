@@ -1,0 +1,25 @@
+{
+  "name": "devops-mailer",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build:task": "bun build ./src/devops-mailer-task.ts --target node --format cjs --outfile ./dist/tasks/devops-mailer/index.js",
+    "build:release": "bun run build:task && bun run ./src/prepare-release.ts && bun install --production --cwd ./dist/tasks/devops-mailer",
+    "package:extension": "bun run build:release && bunx tfx extension create --root ./dist --manifest-globs vss-extension.json --output-path ./release",
+    "release": "bun run build:release && bun run package:extension",
+    "run:task-local": "bun run ./src/devops-mailer-task.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^26.1.1",
+    "@types/nodemailer": "^8.0.1",
+    "tfx-cli": "^0.23.4",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "azure-pipelines-task-lib": "^5.278.0",
+    "handlebars": "^4.7.9",
+    "nodemailer": "^9.0.3"
+  }
+}

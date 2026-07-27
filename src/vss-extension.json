@@ -1,0 +1,49 @@
+{
+  "manifestVersion": 1,
+  "id": "devops-mailer",
+  "publisher": "venipa",
+  "version": "0.1.0",
+  "name": "DevOps Mailer",
+  "description": "Azure Pipelines task extension for SMTP email with Handlebars templating for Azure Pipelines.",
+  "public": true,
+  "icons": {
+    "default": "icon.png"
+  },
+  "categories": [
+    "Azure Pipelines"
+  ],
+  "targets": [
+    {
+      "id": "Microsoft.VisualStudio.Services"
+    }
+  ],
+  "files": [
+    {
+      "path": "tasks/devops-mailer"
+    },
+    {
+      "path": "README.md",
+      "addressable": true
+    },
+    {
+      "path": "icon.png",
+      "addressable": true
+    }
+  ],
+  "contributions": [
+    {
+      "id": "devops-mailer",
+      "type": "ms.vss-distributed-task.task",
+      "targets": [
+        "ms.vss-distributed-task.tasks"
+      ],
+      "properties": {
+        "name": "tasks/devops-mailer"
+      }
+    }
+  ],
+  "scopes": [
+    "vso.build_execute",
+    "vso.release_execute"
+  ]
+}

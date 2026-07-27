@@ -1,0 +1,137 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/azure-pipelines-task-lib/master/tasks.schema.json",
+  "id": "596387db-4f3d-4de2-bc84-75daace23854",
+  "name": "devops-mailer",
+  "friendlyName": "DevOps Mailer",
+  "description": "Send custom SMTP email to one or more recipients with Handlebars template support for Azure Pipelines.",
+  "iconUrl": "icon.png",
+  "helpMarkDown": "Use this task to send an email from Azure Pipelines through SMTP. Subject and content support Handlebars templates using pipeline variables and custom JSON template context.",
+  "category": "Utility",
+  "author": "DevOps Mailer",
+  "version": {
+    "Major": 0,
+    "Minor": 1,
+    "Patch": 0
+  },
+  "instanceNameFormat": "Send email: $(subject)",
+  "inputs": [
+    {
+      "name": "title",
+      "type": "string",
+      "label": "Title",
+      "defaultValue": "Pipeline Notification",
+      "required": true,
+      "helpMarkDown": "Logical message title. Available in templates as {{title}}."
+    },
+    {
+      "name": "to",
+      "type": "multiLine",
+      "label": "To recipients",
+      "defaultValue": "",
+      "required": true,
+      "helpMarkDown": "Recipient emails. Separate with comma, semicolon, or newline."
+    },
+    {
+      "name": "fromAddress",
+      "type": "string",
+      "label": "From address",
+      "defaultValue": "",
+      "required": true,
+      "helpMarkDown": "Sender address shown in email."
+    },
+    {
+      "name": "subject",
+      "type": "string",
+      "label": "Subject template",
+      "defaultValue": "{{title}} | Build {{variables.BUILD_BUILDNUMBER}}",
+      "required": true,
+      "helpMarkDown": "Email subject. Supports Handlebars expressions."
+    },
+    {
+      "name": "content",
+      "type": "multiLine",
+      "label": "Content template",
+      "defaultValue": "Build result: {{variables.BUILD_RESULT}}",
+      "required": true,
+      "helpMarkDown": "Email body content. Supports Handlebars expressions."
+    },
+    {
+      "name": "isBodyHtml",
+      "type": "boolean",
+      "label": "Content is HTML",
+      "defaultValue": "false",
+      "required": false,
+      "helpMarkDown": "Set true if content template is HTML."
+    },
+    {
+      "name": "templateContext",
+      "type": "multiLine",
+      "label": "Template context JSON",
+      "defaultValue": "{}",
+      "required": false,
+      "helpMarkDown": "Optional JSON object merged into template context."
+    },
+    {
+      "name": "smtpHost",
+      "type": "string",
+      "label": "SMTP host",
+      "defaultValue": "",
+      "required": true,
+      "helpMarkDown": "SMTP server host."
+    },
+    {
+      "name": "smtpPort",
+      "type": "string",
+      "label": "SMTP port",
+      "defaultValue": "587",
+      "required": true,
+      "helpMarkDown": "SMTP server port number."
+    },
+    {
+      "name": "smtpSecure",
+      "type": "boolean",
+      "label": "Use secure connection (TLS)",
+      "defaultValue": "false",
+      "required": false,
+      "helpMarkDown": "Set true for implicit TLS (usually port 465)."
+    },
+    {
+      "name": "smtpUsername",
+      "type": "string",
+      "label": "SMTP username",
+      "defaultValue": "",
+      "required": true,
+      "helpMarkDown": "SMTP account username."
+    },
+    {
+      "name": "smtpPassword",
+      "type": "string",
+      "label": "SMTP password",
+      "defaultValue": "",
+      "required": true,
+      "isSecret": true,
+      "helpMarkDown": "SMTP account password."
+    },
+    {
+      "name": "smtpIgnoreTLS",
+      "type": "boolean",
+      "label": "Ignore STARTTLS",
+      "defaultValue": "false",
+      "required": false,
+      "helpMarkDown": "Set true to disable STARTTLS upgrade."
+    },
+    {
+      "name": "smtpRequireTLS",
+      "type": "boolean",
+      "label": "Require STARTTLS",
+      "defaultValue": "true",
+      "required": false,
+      "helpMarkDown": "Set true to fail if STARTTLS unavailable."
+    }
+  ],
+  "execution": {
+    "Node24": {
+      "target": "index.js"
+    }
+  }
+}
