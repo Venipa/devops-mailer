@@ -1,16 +1,19 @@
-# Notes for release {{releaseDetails.releaseDefinition.name}}
-**Release Number**: {{releaseDetails.name}}
-**Release completed**: {{releaseDetails.modifiedOn}}
-**Build Number**: {{buildDetails.id}}
-**Compared Release Number**: {{compareReleaseDetails.name}}
-**Build Trigger PR Number**: {{lookup buildDetails.triggerInfo 'pr.number'}}
+### Notes for release {{releaseDetails.releaseDefinition.name}}
+- **Release Number**: {{releaseDetails.name}}
+- **Release completed**: {{releaseDetails.modifiedOn}}
+- **Build Number**: {{buildDetails.id}}
+- **Compared Release Number**: {{compareReleaseDetails.name}}
+- **Build Trigger PR Number**: {{#if pullRequests.length}} {{lookup pullRequests.0 'pullRequestId'}} {{else}} - {{/if}}
 
-# Associated Pull Requests ({{pullRequests.length}})
+{{#if commits.length}}
+### Associated Pull Requests ({{pullRequests.length}})
 {{#forEach pullRequests}}
-* **[{{this.pullRequestId}}]({{replace (replace this.url "_apis/git/repositories" "_git") "pullRequests" "pullRequest"}})** {{this.title}}
+- **[PR {{this.pullRequestId}}]({{replace (replace this.url "_apis/git/repositories" "_git") "pullRequests" "pullRequest"}})** {{this.title}}
 {{/forEach}}
 
-# Thank you contributors
+### Contributors
 {{#each (unique (pluck commits "author.displayName"))}}
-* {{this}}
+- {{this}}
 {{/each}}
+
+{{/if}}
