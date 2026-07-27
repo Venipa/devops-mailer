@@ -1,19 +1,21 @@
 {
   "name": "devops-mailer",
-  "module": "index.ts",
-  "type": "module",
+  "type": "commonjs",
   "private": true,
   "scripts": {
     "build:task": "bun build ./src/devops-mailer-task.ts --target node --format cjs --outfile ./dist/tasks/devops-mailer/index.js",
     "build:release": "bun run build:task && bun run ./src/prepare-release.ts && bun install --production --cwd ./dist/tasks/devops-mailer",
     "package:extension": "bun run build:release && bunx tfx extension create --root ./dist --manifest-globs vss-extension.json --output-path ./release",
     "release": "bun run build:release && bun run package:extension",
-    "run:task-local": "bun run ./src/devops-mailer-task.ts"
+    "run:task-local": "bun run ./src/devops-mailer-task.ts",
+    "test": "bun test"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/node": "^26.1.1",
     "@types/nodemailer": "^8.0.1",
+    "@types/smtp-server": "^3.5.13",
+    "smtp-server": "^3.19.2",
     "tfx-cli": "^0.23.4",
     "typescript": "^7.0.2"
   },
