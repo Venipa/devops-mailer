@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 import { TaskMockRunner } from "azure-pipelines-task-lib/mock-run";
 import { SMTPServer } from "smtp-server";
@@ -11,9 +14,11 @@ const SMTP_PASSWORD: string = "smtp-pass";
 let smtpServer: SMTPServer | null = null;
 let smtpPort: number = 0;
 let receivedMessages: string[] = [];
+let receivedEnvelopeRecipients: string[][] = [];
 
 const startSmtpServer = async (): Promise<void> => {
   receivedMessages = [];
+  receivedEnvelopeRecipients = [];
 
   smtpServer = new SMTPServer({
     secure: false,
@@ -27,7 +32,7 @@ const startSmtpServer = async (): Promise<void> => {
 
       callback(new Error("Invalid SMTP credentials"));
     },
-    onData(stream, _session, callback): void {
+    onData(stream, session, callback): void {
       let rawMessage = "";
       stream.setEncoding("utf8");
 
@@ -36,6 +41,10 @@ const startSmtpServer = async (): Promise<void> => {
       });
       stream.on("end", () => {
         receivedMessages.push(rawMessage);
+        const envelopeRecipients: string[] = session.envelope.rcptTo.map(
+          (recipient: { address: string }): string => recipient.address
+        );
+        receivedEnvelopeRecipients.push(envelopeRecipients);
         callback();
       });
     },
@@ -102,10 +111,16 @@ describe("SMTP send integration", () => {
 
     taskRunner.setInput("title", uniqueTitle);
     taskRunner.setInput("to", "receiver@example.com");
+    taskRunner.setInput("cc", "copy@example.com");
+    taskRunner.setInput("bcc", "blind@example.com");
     taskRunner.setInput("fromAddress", "sender@example.com");
     taskRunner.setInput("subject", "{{title}}");
-    taskRunner.setInput("content", `Hello ${uniqueBodyMarker}`);
-    taskRunner.setInput("isBodyHtml", "false");
+    taskRunner.setInput("content", `# Hello ${uniqueBodyMarker}`);
+    const temporaryDirectory: string = await mkdtemp(join(tmpdir(), "devops-mailer-test-"));
+    const attachmentPath: string = join(temporaryDirectory, "sample-attachment.txt");
+    await writeFile(attachmentPath, "attachment-content", "utf8");
+    taskRunner.setInput("attachments", `${attachmentPath}`);
+    taskRunner.setInput("contentFormat", "markdown");
     taskRunner.setInput("templateContext", "{}");
     taskRunner.setInput("smtpHost", "127.0.0.1");
     taskRunner.setInput("smtpPort", String(smtpPort));
@@ -121,26 +136,34 @@ describe("SMTP send integration", () => {
       { name: "AGENT_JOBSTATUS", value: "Succeeded" },
     ]);
 
-    expect(() => taskRunner.run()).not.toThrow();
+    try {
+      expect(() => taskRunner.run()).not.toThrow();
 
-    await new Promise<void>((resolve, reject) => {
-      const startedAt: number = Date.now();
-      const pollId: ReturnType<typeof setInterval> = setInterval(() => {
-        if (receivedMessages.length > 0) {
-          clearInterval(pollId);
-          resolve();
-          return;
-        }
+      await new Promise<void>((resolve, reject) => {
+        const startedAt: number = Date.now();
+        const pollId: ReturnType<typeof setInterval> = setInterval(() => {
+          if (receivedMessages.length > 0) {
+            clearInterval(pollId);
+            resolve();
+            return;
+          }
 
-        if (Date.now() - startedAt > 4000) {
-          clearInterval(pollId);
-          reject(new Error("SMTP message not received within timeout"));
-        }
-      }, 50);
-    });
+          if (Date.now() - startedAt > 4000) {
+            clearInterval(pollId);
+            reject(new Error("SMTP message not received within timeout"));
+          }
+        }, 50);
+      });
 
-    expect(receivedMessages.length).toBe(1);
-    expect(receivedMessages[0]).toContain(`Subject: ${uniqueTitle}`);
-    expect(receivedMessages[0]).toContain(uniqueBodyMarker);
+      expect(receivedMessages.length).toBe(1);
+      expect(receivedEnvelopeRecipients[0]).toContain("blind@example.com");
+      expect(receivedMessages[0]).toContain(`Subject: ${uniqueTitle}`);
+      expect(receivedMessages[0]).toContain("Cc: copy@example.com");
+      expect(receivedMessages[0]).toContain("sample-attachment.txt");
+      expect(receivedMessages[0]).toContain("Content-Type: text/html");
+      expect(receivedMessages[0]).toContain(`<h1>Hello ${uniqueBodyMarker}</h1>`);
+    } finally {
+      await rm(temporaryDirectory, { recursive: true, force: true });
+    }
   });
 });

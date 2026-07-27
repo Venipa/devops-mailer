@@ -1,5 +1,7 @@
 import * as task from "azure-pipelines-task-lib/task";
 import Handlebars from "handlebars";
+import { marked } from "marked";
+import { stat } from "node:fs/promises";
 import nodemailer from "nodemailer";
 
 interface SmtpConfiguration {
@@ -16,11 +18,16 @@ interface MessageConfiguration {
   readonly title: string;
   readonly fromAddress: string;
   readonly recipients: readonly string[];
+  readonly ccRecipients: readonly string[];
+  readonly bccRecipients: readonly string[];
   readonly subjectTemplate: string;
   readonly bodyTemplate: string;
-  readonly isBodyHtml: boolean;
+  readonly attachmentPaths: readonly string[];
+  readonly contentFormat: ContentFormat;
   readonly templateContext: Record<string, unknown>;
 }
+
+type ContentFormat = "text" | "html" | "markdown";
 
 interface PipelineContext {
   readonly variables: Record<string, string>;
@@ -38,6 +45,21 @@ const parseBooleanInput = (value: string | undefined): boolean => {
 
   const normalizedValue: string = value.trim().toLowerCase();
   return normalizedValue === "true" || normalizedValue === "1" || normalizedValue === "yes";
+};
+
+const parseContentFormat = (rawContentFormat: string | undefined): ContentFormat => {
+  const normalizedContentFormat: string = (rawContentFormat ?? "text").trim().toLowerCase();
+  if (
+    normalizedContentFormat !== "text" &&
+    normalizedContentFormat !== "html" &&
+    normalizedContentFormat !== "markdown"
+  ) {
+    throw new Error(
+      `Invalid contentFormat value "${rawContentFormat}". Use one of: text, html, markdown.`
+    );
+  }
+
+  return normalizedContentFormat;
 };
 
 const getRequiredInput = (inputName: string): string => {
@@ -60,6 +82,52 @@ const parseRecipients = (rawRecipients: string): readonly string[] => {
   }
 
   return recipients;
+};
+
+const parseOptionalRecipients = (rawRecipients: string | undefined): readonly string[] => {
+  if (!rawRecipients || rawRecipients.trim().length === 0) {
+    return [];
+  }
+
+  return rawRecipients
+    .split(/[\n,;]+/g)
+    .map((recipient: string) => recipient.trim())
+    .filter((recipient: string) => recipient.length > 0);
+};
+
+const parseAttachmentPaths = (rawAttachments: string | undefined): readonly string[] => {
+  if (!rawAttachments || rawAttachments.trim().length === 0) {
+    return [];
+  }
+
+  return rawAttachments
+    .split(/\r?\n/g)
+    .map((attachmentPath: string) => attachmentPath.trim())
+    .filter((attachmentPath: string) => attachmentPath.length > 0);
+};
+
+const validateAttachmentPaths = async (
+  attachmentPaths: readonly string[]
+): Promise<readonly string[]> => {
+  const missingAttachmentPaths: string[] = [];
+
+  await Promise.all(
+    attachmentPaths.map(async (attachmentPath: string): Promise<void> => {
+      try {
+        await stat(attachmentPath);
+      } catch (error: unknown) {
+        missingAttachmentPaths.push(attachmentPath);
+      }
+    })
+  );
+
+  if (missingAttachmentPaths.length > 0) {
+    throw new Error(
+      `Attachment file(s) not found: ${missingAttachmentPaths.join(", ")}`
+    );
+  }
+
+  return attachmentPaths;
 };
 
 const setNestedValue = (
@@ -190,18 +258,24 @@ const loadMessageConfiguration = (): MessageConfiguration => {
   const title: string = getRequiredInput("title");
   const fromAddress: string = getRequiredInput("fromAddress");
   const recipients: readonly string[] = parseRecipients(getRequiredInput("to"));
+  const ccRecipients: readonly string[] = parseOptionalRecipients(task.getInput("cc"));
+  const bccRecipients: readonly string[] = parseOptionalRecipients(task.getInput("bcc"));
   const subjectTemplate: string = getRequiredInput("subject");
   const bodyTemplate: string = getRequiredInput("content");
-  const isBodyHtml: boolean = parseBooleanInput(task.getInput("isBodyHtml"));
+  const attachmentPaths: readonly string[] = parseAttachmentPaths(task.getInput("attachments"));
+  const contentFormat: ContentFormat = parseContentFormat(task.getInput("contentFormat"));
   const templateContext: Record<string, unknown> = parseTemplateContext(task.getInput("templateContext"));
 
   return {
     title,
     fromAddress,
     recipients,
+    ccRecipients,
+    bccRecipients,
     subjectTemplate,
     bodyTemplate,
-    isBodyHtml,
+    attachmentPaths,
+    contentFormat,
     templateContext,
   };
 };
@@ -229,6 +303,9 @@ const loadSmtpConfiguration = (): SmtpConfiguration => {
 const run = async (): Promise<void> => {
   try {
     const messageConfiguration: MessageConfiguration = loadMessageConfiguration();
+    const validatedAttachmentPaths: readonly string[] = await validateAttachmentPaths(
+      messageConfiguration.attachmentPaths
+    );
     const smtpConfiguration: SmtpConfiguration = loadSmtpConfiguration();
     const pipelineContext: PipelineContext = buildPipelineContext();
 
@@ -254,6 +331,7 @@ const run = async (): Promise<void> => {
       templateRuntimeContext,
       "content"
     );
+    const renderedHtmlContent: string = await Promise.resolve(marked.parse(renderedContent, {gfm: true}));
 
     const transporter = nodemailer.createTransport({
       host: smtpConfiguration.host,
@@ -270,11 +348,32 @@ const run = async (): Promise<void> => {
     const mailOptions = {
       from: messageConfiguration.fromAddress,
       to: messageConfiguration.recipients.join(", "),
+      ...(messageConfiguration.ccRecipients.length > 0
+        ? { cc: messageConfiguration.ccRecipients.join(", ") }
+        : {}),
+      ...(messageConfiguration.bccRecipients.length > 0
+        ? { bcc: messageConfiguration.bccRecipients.join(", ") }
+        : {}),
       subject: renderedSubject,
       headers: {
         "X-Message-Title": messageConfiguration.title,
       },
-      ...(messageConfiguration.isBodyHtml ? { html: renderedContent } : { text: renderedContent }),
+      ...(validatedAttachmentPaths.length > 0
+        ? {
+            attachments: validatedAttachmentPaths.map((attachmentPath: string) => ({
+              path: attachmentPath,
+            })),
+          }
+        : {}),
+      ...(messageConfiguration.contentFormat === "html"
+        ? { html: renderedContent }
+        : {}),
+      ...(messageConfiguration.contentFormat === "markdown"
+        ? { html: renderedHtmlContent }
+        : {}),
+      ...(messageConfiguration.contentFormat === "text"
+        ? { text: renderedContent }
+        : {}),
     };
 
     const info = await transporter.sendMail(mailOptions);

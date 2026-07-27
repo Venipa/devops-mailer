@@ -26,18 +26,42 @@
     {
       "name": "to",
       "type": "multiLine",
-      "label": "To recipients",
+      "label": "To Adresses",
       "defaultValue": "",
       "required": true,
       "helpMarkDown": "Recipient emails. Separate with comma, semicolon, or newline."
     },
     {
+      "name": "cc",
+      "type": "multiLine",
+      "label": "CC Address(es)",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "CC recipient emails. Separate with comma, semicolon, or newline."
+    },
+    {
+      "name": "bcc",
+      "type": "multiLine",
+      "label": "BCC Address(es)",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "BCC recipient emails. Separate with comma, semicolon, or newline."
+    },
+    {
       "name": "fromAddress",
       "type": "string",
-      "label": "From address",
+      "label": "From Address",
       "defaultValue": "",
       "required": true,
       "helpMarkDown": "Sender address shown in email."
+    },
+    {
+      "name": "attachments",
+      "type": "multiLine",
+      "label": "Attachment file path(s)",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "One file path per line. Task fails if any path does not exist."
     },
     {
       "name": "subject",
@@ -56,12 +80,17 @@
       "helpMarkDown": "Email body content. Supports Handlebars expressions."
     },
     {
-      "name": "isBodyHtml",
-      "type": "boolean",
-      "label": "Content is HTML",
-      "defaultValue": "false",
+      "name": "contentFormat",
+      "type": "pickList",
+      "label": "Content format",
+      "defaultValue": "text",
       "required": false,
-      "helpMarkDown": "Set true if content template is HTML."
+      "options": {
+        "text": "text",
+        "html": "html",
+        "markdown": "markdown"
+      },
+      "helpMarkDown": "Choose body format: text, html, or markdown. Markdown is rendered to HTML before send."
     },
     {
       "name": "templateContext",
